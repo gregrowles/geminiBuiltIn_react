@@ -1,278 +1,236 @@
-  // import { GeminiSummarizer } from './geminiSummarizer.js';
-  // import { GeminiTranslator } from './geminiTranslator.js';
-  // import { GeminiRewriter } from './geminiRewriter.js';
-  import { GeminiPrompt } from './geminiPrompt.js';
-
-  import * as markdownIt from 'https://esm.run/markdown-it';
-
-  // hardCoded: fix
-  const responseOutputControlID = 'responseOutput';
-
-  // const summarizerInstance = new GeminiSummarizer( markdownOutput );
-  // const translatorInstance = new GeminiTranslator( markdownOutput );
-  // const rewriterInstance = new GeminiRewriter( markdownOutput );
-  const promptLanguageModel = new GeminiPrompt( markdownOutput );
-
-  
-  // 1. bind "stop" button to controller (also show/hide accordingly)
-  // 2. include option: use-as-chat (where responses are appended to the chat history)
-
-  function markdownOutput ( chunk ) {
-
-    const md = markdownit()
-    const html = md.render(chunk);
-    const targetEl = document.getElementById( responseOutputControlID );
-
-    if (!targetEl) {
-        console.error(`Element with ID "${targetElementId}" not found.`);
-        return;
-    }
-
-    targetEl.innerHTML = html;
-    targetEl.scrollTop = targetEl.scrollHeight;
-
-    // dhis2 iframe context
-    if ( window.parent && window.parent.document && window.parent.document.querySelector('.app-shell-app') ) {
-      const parentFrame = window.parent.document.querySelector('.app-shell-app');
-      parentFrame.scrollTo({ top: parentFrame.scrollHeight, left: 0, behavior: 'smooth' });
-    }
-
-  }
-
-  function markdownReturn ( chunk ) {
-
-    const md = markdownit()
-
-    return md.render(chunk);
-
-  }
-
-
-  // Function to run the summarizer
-  // async function runSummarizer ( inpText, callback ) {
-
-  //   await summarizerInstance.init();
-
-  //   const summary = await summarizerInstance.summarize( inpText );
-
-  //   markdownOutput( summary );
-
-  //   if ( callback && typeof callback === 'function') {
-
-  //     callback( { id: generateRandomId(15), type: 'S', input: inpText, response: summary } );
-
-  //   }
-
-  // }
-  // async function runSummarizerStream ( inpText, callback ) {
-
-  //   await summarizerInstance.init();
-
-  //   await summarizerInstance.summarizeStream( inpText, 'intended for health managers', markdownOutput, ( streamFinal ) => {
-
-  //     if ( callback && typeof callback === 'function') {
-
-  //       callback( { id: generateRandomId(15), type: 'Ss', input: inpText, response: streamFinal } );
-
-  //     }
-
-  //   });
-
-  // }
-
-  // // Function to run the translator
-  // async function runTranslator ( inpText, callback ) {
-
-  //   await translatorInstance.init( document.getElementById('languageFrom') ? document.getElementById('languageFrom').value : 'en', document.getElementById('languageTo') ? document.getElementById('languageTo').value : 'fr' );
-
-  //   const summary = await translatorInstance.translate( inpText );
-
-  //   markdownOutput( summary );
-
-  //     if ( callback && typeof callback === 'function') {
-
-  //       callback( { id: generateRandomId(15), type: 'T', input: inpText, response: summary } );
-
-  //     }
-
-  // }
-
-  // // Function to run the rewriter
-  // async function runRewriter ( inpText, callback ) {
-
-  //   await rewriterInstance.init();
-
-  //   const summary = await rewriterInstance.rewrite( inpText );
-
-  //   markdownOutput( summary );
-
-  //   if ( callback && typeof callback === 'function') {
-
-  //     callback( { id: generateRandomId(15), type: 'R', input: inpText, response: summary } );
-
-  //   }
-
-  // }
-
-  // Function to run the prompt
-  async function runPrompt ( inpText, callback ) {
-
-    await promptLanguageModel.init();
-
-    await promptLanguageModel.prompt( inpText , ( summary ) => {
-
-      markdownOutput( summary );
-
-      if ( callback && typeof callback === 'function') {
-
-        callback( { id: generateRandomId(15), type: 'P', input: inpText, response: summary } );
-
-      }
-
-    });
-
-  }
-  async function runPromptStream ( inpText, callback ) {
-
-    if ( inpObj?.options )  await promptLanguageModel.init( inpObj?.options );
-    else await promptLanguageModel.init();
-
-    await promptLanguageModel.promptStream( inpText, markdownOutput, ( streamFinal ) => {
-
-      if ( callback && typeof callback === 'function') {
-
-        callback( { id: generateRandomId(15), type: 'Ps', input: inpText, response: streamFinal } );
-
-      }
-
-    });
-
-  }
-  async function runPromptStreamJsonInput ( inpObj, callback ) {
-
-    if ( typeof inpObj === 'object' && inpObj?.defaultPrompt ) promptLanguageModel.defaults.systemPrompt = inpObj.defaultPrompt;
-
-    if ( inpObj?.options )  await promptLanguageModel.init( inpObj?.options );
-    else await promptLanguageModel.init();
-
-    await promptLanguageModel.promptStream( inpObj.prompt, markdownOutput, ( streamFinal ) => {
-
-      if ( callback && typeof callback === 'function') {
-
-        var cloneData = JSON.parse( JSON.stringify( inpObj ) );
-
-        cloneData[ 'id' ] = generateRandomId(15);
-        cloneData[ 'type' ] = 'Ps';
-        cloneData[ 'response' ] = streamFinal;
-
-        // callback( { id: generateRandomId(15), type: 'Ps', input: inpObj.prompt, response: streamFinal } );
-        callback( cloneData );
-
-      }
-
-    });
-
-  }
-
-  // Function to run the api fetch
-  async function testAPIurl ( args, callback ) {
-  
-    console.log('testAPIurl called with args:', args);
-    let _headers = { 'Content-Type': args?.contentType || 'application/json' };
-    let _body = args?.body ? args?.body : null;
-
-    if ( args?.username?.length && args?.password?.length ) {
-      const encodedCredentials = btoa( args.username + ':' + args.password );
-      _headers['Authorization'] = 'Basic ' + encodedCredentials;
-    }
-
-    if ( args?.accessToken ) {
-      const encodedCredentials = btoa( args.username + ':' + args.password );
-      _headers['Authorization'] = 'Bearer ' + encodedCredentials;
-    }
-
-    try{
-      const response = await fetch( args?.url, {
-        method: args?.method || 'GET',
-        headers: _headers,
-        body: _body
-      });
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Login successful:', data);
-        callback( data );
-      } else {
-        console.error('Login failed:', response.status, response.statusText);
-        callback( { error: 'Fetch failed', status: response.status, statusText: response.statusText } );
-      }
-    }
-    catch(e){
-      console.error('Error during fetch:', e);
-      callback( { error: e.message } );
-      return;
-    }
-    
-  
+/**
+ * geminiApp.js
+ * High-level helpers built on top of GeminiPrompt.
+ * Designed for React (or any bundler-based project) – no DOM manipulation,
+ * no window globals.  All functions are pure async / callback-based so they
+ * drop straight into React state hooks.
+ *
+ * Install peer dependencies:
+ *   npm install markdown-it
+ *
+ * --------------------------------------------------------------------------
+ * React quick-start
+ * --------------------------------------------------------------------------
+ *
+ *   import { createGeminiApp } from './geminiApp';
+ *
+ *   // Create one instance per component (or share via context / zustand etc.)
+ *   const gemini = createGeminiApp();
+ *
+ *   // Inside a component:
+ *   const [output, setOutput] = useState('');
+ *
+ *   async function handleSubmit(text) {
+ *     await gemini.init((status) => console.log(status));
+ *     await gemini.runPromptStream(text, setOutput);   // setOutput called on each token
+ *   }
+ *
+ *   // Render markdown:
+ *   <div dangerouslySetInnerHTML={{ __html: gemini.renderMarkdown(output) }} />
+ *
+ * --------------------------------------------------------------------------
+ */
+
+import { GeminiPrompt } from './geminiPrompt.js';
+import MarkdownIt from 'markdown-it';
+
+// ---------------------------------------------------------------------------
+// Markdown helper (stateless – safe to call from anywhere)
+// ---------------------------------------------------------------------------
+
+const md = new MarkdownIt();
+
+/**
+ * Render a markdown string to an HTML string.
+ * Use with React's dangerouslySetInnerHTML.
+ * @param {string} markdownText
+ * @returns {string} HTML string
+ */
+export function renderMarkdown(markdownText) {
+  return md.render(markdownText ?? '');
 }
 
+// ---------------------------------------------------------------------------
+// ID helper
+// ---------------------------------------------------------------------------
 
-  async function destroyLanguageModel() {
-    promptLanguageModel.destroy();
+/**
+ * Generate a random alphanumeric ID.
+ * @param {number} [length=15]
+ * @returns {string}
+ */
+export function generateId(length = 15) {
+  return Math.random().toString(36).substring(2, length + 2);
+}
+
+// ---------------------------------------------------------------------------
+// Factory – creates a self-contained Gemini app instance
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a self-contained Gemini Nano app instance.
+ * Instantiate once per logical "session" (e.g. per component or per context).
+ *
+ * @returns {GeminiApp}
+ */
+export function createGeminiApp() {
+  return new GeminiApp();
+}
+
+export class GeminiApp {
+  constructor() {
+    this._model = new GeminiPrompt();
   }
 
-  
-  async function aboutGemini( ) {
+  // ── Accessors ─────────────────────────────────────────────────────────────
 
-    // const inputText = document.getElementById('geminiInputText').value;
-    // const output = document.getElementById('responseOutput');
-    // output.textContent = 'Checking...';
-
-    setTimeout(() => {
-      let result =  '**Gemini Nano** \n\n' +
-                    ' The following list of features are available/enabled on your machine: \n' +
-                    '| Feature | Supported | Purpose |\n'+
-                    '| --- | --- | --- |\n' +
-                  //  '| Summarize | ${( 'Summarizer' in self ? '&#10003;' : ' ' )} | Summarizing narratives, articles or messages |\n' +
-                    '| Summarize | ' + ( 'Summarizer' in self ? '&#10003;' : ' ' ) + ' | Summarizing narratives, articles or messages|\n' +
-                    '| Translate (en - fr) | ' + ( 'Translator' in self ? '&#10003;' : ' ' ) + ' | Translation of texts into other langages (en-fr defaulted) |\n' +
-                    '| Rewrite | ' + ( 'Rewriter' in self ? '&#10003;' : ' ' ) + ' | Rewrite texts to sound more polite or formal |\n' +
-                  //  '| Prompt | ${( 'prompt' in self ? '&#10003;' : ' ' )} |\n' +
-                    '| Prompt | ' + ( 'prompt' in self ? '&#10003;' : ' ' ) + ' | Answer questions based on provided texts or general Q&A|\n\n' +
-                    '**Getting Started** \n\n' + 
-                    'Gemini (Nano) is an experimental AI feature (under Chrome)\n' + 
-                    'How to Enable Foundational Model (e.g. v2Nano) \n' + 
-                    '1. Copy reserved URL _chrome://flags/#prompt-api-for-gemini-nano_ and paste into new tab \n' + 
-                    '2. Enable feature and restart chrome \n\n' +
-                    'Note: Individual features may require separate settings to be enabled ([rewriter](chrome://flags/#rewriter-api-for-gemini-nano));' + 
-                    'visit developer site to [Learn more](https://developer.chrome.com/docs/ai/get-started) \n\n' +
-                    '**Operating system**\n\nWindows 10 or 11; macOS 13+ (Ventura and onwards); or Linux. Chrome for Android, iOS, and ChromeOS are not yet supported by the APIs which use Gemini Nano.  \n' +
-                    '**Storage**\n\nAt least 22 GB of free space on the volume that contains your Chrome profile  \n';
-
-      // output.innerHTML = "<div class='floatOutput'>" + window.markdownReturn( result ) + "</div>";
-      markdownOutput( result );
-    }, 100);
+  /** Available persona characters. */
+  get characters() {
+    return this._model.characters;
   }
 
-
-  function generateRandomId(length = 10) {
-    return Math.random().toString(36).substring(2, length + 2);
+  /** Current system-prompt default. */
+  get systemPrompt() {
+    return this._model.defaults.systemPrompt;
   }
 
+  set systemPrompt(value) {
+    this._model.defaults.systemPrompt = value;
+  }
 
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-  // Expose functions to the global scope
-  window.promptCharacters = promptLanguageModel.characters;
-  // window.runSummarizer = runSummarizer;
-  // window.runSummarizerStream = runSummarizerStream;   
-  // window.runTranslator = runTranslator;
-  // window.runRewriter = runRewriter;
-  window.runPrompt = runPrompt;
-  window.runPromptStream = runPromptStream;
-  window.runPromptStreamJsonInput = runPromptStreamJsonInput;
-  window.destroyLanguageModel = destroyLanguageModel;
-  window.testAPIurl = testAPIurl;
-  window.markdownReturn = markdownReturn;
-  window.markdownOutput = markdownOutput;
-  window.aboutGemini = aboutGemini;
+  /**
+   * Initialise (or re-initialise) the LanguageModel session.
+   *
+   * @param {function} [onStatus]  (message: string) => void
+   * @param {object}   [opts={}]   Passed directly to LanguageModel.create()
+   */
+  async init(onStatus, opts = {}) {
+    await this._model.init(opts, onStatus);
+  }
 
+  /** Destroy the current session (frees GPU/memory resources). */
+  async destroy() {
+    await this._model.destroy();
+  }
 
+  // ── Prompt API ────────────────────────────────────────────────────────────
+
+  /**
+   * Single-shot prompt.  Returns the full response string.
+   *
+   * @param {string}   promptText
+   * @param {function} [onComplete]  ({ id, type, input, response }) => void
+   * @returns {Promise<string>}
+   */
+  async runPrompt(promptText, onComplete) {
+    const response = await this._model.prompt(promptText);
+
+    if (typeof onComplete === 'function') {
+      onComplete({ id: generateId(), type: 'P', input: promptText, response });
+    }
+
+    return response;
+  }
+
+  /**
+   * Streaming prompt.
+   * onChunk is called with the growing accumulated text on every token –
+   * pass a React setState setter directly.
+   *
+   * @param {string}   promptText
+   * @param {function} onChunk     (accumulatedText: string) => void
+   * @param {function} [onComplete] ({ id, type, input, response }) => void
+   */
+  async runPromptStream(promptText, onChunk, onComplete) {
+    await this._model.promptStream(
+      promptText,
+      onChunk,
+      (fullText) => {
+        if (typeof onComplete === 'function') {
+          onComplete({ id: generateId(), type: 'Ps', input: promptText, response: fullText });
+        }
+      },
+    );
+  }
+
+  /**
+   * Streaming prompt driven by a structured input object.
+   * Useful when you want to pass system-prompt overrides alongside the prompt.
+   *
+   * @param {{ prompt: string, defaultPrompt?: string, [key: string]: any }} inputObj
+   * @param {function} onChunk      (accumulatedText: string) => void
+   * @param {function} [onComplete] (enrichedInputObj) => void
+   * @param {object}   [opts={}]    Passed to LanguageModel.create() via init()
+   */
+  async runPromptStreamFromObject(inputObj, onChunk, onComplete, opts = {}) {
+    if (inputObj?.defaultPrompt) {
+      this._model.defaults.systemPrompt = inputObj.defaultPrompt;
+    }
+
+    // Re-init if options differ from current session
+    if (Object.keys(opts).length) {
+      await this._model.destroy();
+    }
+
+    await this._model.init(opts);
+
+    await this._model.promptStream(
+      inputObj.prompt,
+      onChunk,
+      (fullText) => {
+        if (typeof onComplete === 'function') {
+          const result = { ...inputObj, id: generateId(), type: 'Ps', response: fullText };
+          onComplete(result);
+        }
+      },
+    );
+  }
+
+  // ── Utility ───────────────────────────────────────────────────────────────
+
+  /**
+   * Render markdown to HTML.  Convenience wrapper around the module-level
+   * renderMarkdown() so consumers only need one import.
+   * @param {string} markdownText
+   * @returns {string}
+   */
+  renderMarkdown(markdownText) {
+    return renderMarkdown(markdownText);
+  }
+
+  /**
+   * Return an info string describing which Gemini Nano APIs are available
+   * in the current browser, rendered as a markdown string.
+   * @returns {string} Markdown
+   */
+  aboutGemini() {
+    const check = (api) => (api in self ? '✓' : '–');
+
+    return [
+      '## Gemini Nano – Feature Availability\n',
+      '| Feature | Available | Purpose |',
+      '| --- | :---: | --- |',
+      `| Summarizer | ${check('Summarizer')} | Summarise narratives, articles or messages |`,
+      `| Translator | ${check('Translator')} | Translate text between languages |`,
+      `| Rewriter   | ${check('Rewriter')}   | Rewrite text to sound more formal or polite |`,
+      `| LanguageModel (Prompt) | ${check('LanguageModel')} | General Q&A and report analysis |`,
+      '',
+      '### Getting Started',
+      'Gemini Nano is an experimental Chrome feature.',
+      '',
+      '1. Open a new tab and navigate to `chrome://flags/#prompt-api-for-gemini-nano`',
+      '2. Set the flag to **Enabled** and relaunch Chrome.',
+      '',
+      '> **System requirements:** Windows 10/11, macOS 13+ (Ventura), or Linux.',
+      '> At least **22 GB** of free storage on the Chrome profile volume.',
+      '> Chrome for Android, iOS, and ChromeOS are not yet supported.',
+    ].join('\n');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Named re-export for projects that only need the lower-level class
+// ---------------------------------------------------------------------------
+export { GeminiPrompt };
