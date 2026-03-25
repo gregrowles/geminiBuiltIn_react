@@ -1,4 +1,4 @@
-## Gemini Nano (Built-In) for DHIS2 Reports
+## Gemini Nano (Built-In) for REACT Projects
 
 Client-side wrapper around Chrome's built-in **Gemini Nano** `LanguageModel` API.  
 Designed for use in **React** (or any bundler-based) projects – no DOM manipulation, no `window` globals.

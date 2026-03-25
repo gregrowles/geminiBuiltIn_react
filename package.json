@@ -1,0 +1,16 @@
+{
+  "name": "gemini-built-in-react",
+  "version": "1.0.0",
+  "description": "React helpers for Chrome's built-in Gemini Nano LanguageModel API",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "markdown-it": "^14.1.0"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "typescript": "^5.4.5"
+  }
+}
